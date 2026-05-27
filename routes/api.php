@@ -26,6 +26,8 @@ use App\Http\Controllers\Api\Admin\FileApiController;
 use App\Http\Controllers\Api\Admin\RoleApiController;
 use App\Http\Controllers\Api\Admin\ModuleApiController;
 use App\Http\Controllers\Api\Admin\UserApiController;
+use App\Http\Controllers\Api\Admin\ProjectApiController;
+use App\Http\Controllers\Api\Admin\ProjectAssignmentApiController;
 
 
 /*
@@ -106,6 +108,11 @@ Route::group(['middleware' => 'auth:api', 'prefix' => 'admin'], function () {
     Route::post('documents/upload', [DocumentApiController::class, 'upload']);
     Route::get('documents-folders', [DocumentApiController::class, 'getFolders']);
     Route::get('shareable-users', [DocumentApiController::class, 'getShareableUsers']);
+
+    // Projects
+    Route::apiResource('projects', ProjectApiController::class);
+    Route::get('project-assignments', [ProjectAssignmentApiController::class, 'index']);
+    Route::post('employees/projects', [ProjectAssignmentApiController::class, 'assign']);
 
     // HR Modules
     Route::get('designations', [HRApiController::class, 'indexDesignations']);

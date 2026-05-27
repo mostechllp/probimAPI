@@ -142,20 +142,32 @@ class UpdateEmployeeRequest extends FormRequest
             'personal_number' => 'nullable|string|max:255',
             'other_number' => 'nullable|string|max:255',
             'home_country_number' => 'nullable|string|max:255',
-            'company_email' => 'nullable|email|max:255',
+            'company_email' => [
+            'nullable',
+            'email',
+                Rule::unique('employees', 'company_email')
+                    ->whereNull('deleted_at') 
+                    ->ignore($this->employee)        
+            ],
             'personal_email' => [
             'required',
             'email',
                 Rule::unique('employees', 'personal_email')
-                    ->whereNull('deleted_at')        // ignore soft deleted
-                    ->ignore($this->employee)        // ignore current employee on update
+                    ->whereNull('deleted_at')        
+                    ->ignore($this->employee)        
             ],
             'status' => 'nullable|in:active,inactive',
             'total_leaves_allocated' => 'nullable|integer|min:0',
-            'username' => 'nullable|string|max:255',
-            // 'password' => 'nullable|string|max:255',
+            'username' => 'nullable|string|max:255|unique:users,username',
+            'email' => [
+            'nullable',
+            'email',
+                Rule::unique('users', 'email')
+                    ->whereNull('deleted_at')    
+                    ->ignore($this->user->id)     
+            ],
             'type' => 'required|in:admin,employee',
-            'role_id' => 'required|string|max:255',
+            'role_id' => 'required',
         ];
     }
 

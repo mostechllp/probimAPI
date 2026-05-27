@@ -2,8 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use App\Models\Module;
+use App\Models\Role;
+use App\Models\RolePermission;
 
 class RBACSeeder extends Seeder
 {
@@ -12,7 +14,12 @@ class RBACSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Create Modules
+        /*
+        |--------------------------------------------------------------------------
+        | Create Modules
+        |--------------------------------------------------------------------------
+        */
+
         $modules = [
             ['name' => 'Dashboard', 'slug' => 'dashboard', 'route' => '/dashboard', 'icon' => 'dashboard'],
             ['name' => 'Employees', 'slug' => 'employees', 'route' => '/employees', 'icon' => 'people'],
@@ -24,28 +31,125 @@ class RBACSeeder extends Seeder
         ];
 
         foreach ($modules as $module) {
-            \App\Models\Module::updateOrCreate(['slug' => $module['slug']], $module);
+            Module::updateOrCreate(
+                ['slug' => $module['slug']],
+                $module
+            );
         }
 
-        // 2. Create Roles
+        /*
+        |--------------------------------------------------------------------------
+        | Create Roles
+        |--------------------------------------------------------------------------
+        */
+
         $roles = [
-            ['name' => 'Admin', 'description' => 'Full system access'],
-            ['name' => 'HR Manager', 'description' => 'Manage employees and attendance'],
-            ['name' => 'Employee', 'description' => 'Regular employee access'],
-            ['name' => 'Accountant', 'description' => 'Manage payroll and financial reports'],
-            ['name' => 'Team Lead', 'description' => 'Manage team attendance and leaves'],
+
+            [
+                'name' => 'Super Admin',
+                'guard_name' => 'api',
+                'description' => 'Full access to all modules and system settings',
+            ],
+
+            [
+                'name' => 'Admin',
+                'guard_name' => 'api',
+                'description' => 'Administrative access to system modules',
+            ],
+
+            [
+                'name' => 'Subadmin',
+                'guard_name' => 'api',
+                'description' => 'Limited administrative access',
+            ],
+
+            [
+                'name' => 'HR Manager',
+                'guard_name' => 'api',
+                'description' => 'Leave, payroll, documents & notifications',
+            ],
+
+            [
+                'name' => 'BIM Manager',
+                'guard_name' => 'api',
+                'description' => 'Self-assign + full assignment rights; senior management',
+            ],
+
+            [
+                'name' => 'BIM Assistant Manager',
+                'guard_name' => 'api',
+                'description' => 'Can assign to Coordinators & Modelers; no self-assign',
+            ],
+
+            [
+                'name' => 'BIM Team Lead',
+                'guard_name' => 'api',
+                'description' => 'Can assign to Coordinators & Modelers; leave suggestion only',
+            ],
+
+            [
+                'name' => 'BIM Coordinator',
+                'guard_name' => 'api',
+                'description' => 'Receives assigned tasks only',
+            ],
+
+            [
+                'name' => 'BIM Modeler',
+                'guard_name' => 'api',
+                'description' => 'Handles BIM modeling tasks',
+            ],
+
+            [
+                'name' => 'BIM Technician',
+                'guard_name' => 'api',
+                'description' => 'Technical BIM support role',
+            ],
+
+            [
+                'name' => 'BIM Engineer',
+                'guard_name' => 'api',
+                'description' => 'Engineering and BIM coordination role',
+            ],
+
+            [
+                'name' => 'Employee',
+                'guard_name' => 'api',
+                'description' => 'Regular employee access',
+            ],
         ];
 
         foreach ($roles as $roleData) {
-            $role = \App\Models\Role::updateOrCreate(['name' => $roleData['name']], $roleData);
 
-            // Give Admin all permissions by default
-            if ($role->name === 'Admin') {
-                $allModules = \App\Models\Module::all();
+            $role = Role::updateOrCreate(
+                [
+                    'name' => $roleData['name'],
+                    'guard_name' => 'api'
+                ],
+                $roleData
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Give Super Admin Full Access
+            |--------------------------------------------------------------------------
+            */
+
+            if (in_array($role->name, ['Super Admin', 'Admin'])) {
+
+                $allModules = Module::all();
+
                 foreach ($allModules as $module) {
-                    \App\Models\RolePermission::updateOrCreate(
-                        ['role_id' => $role->id, 'module_id' => $module->id],
-                        ['can_read' => true, 'can_edit' => true, 'can_delete' => true]
+
+                    RolePermission::updateOrCreate(
+                        [
+                            'role_id' => $role->id,
+                            'module_id' => $module->id,
+                        ],
+                        [
+                            'can_read' => true,
+                            'can_edit' => true,
+                            'can_delete' => true,
+                        ]
                     );
                 }
             }

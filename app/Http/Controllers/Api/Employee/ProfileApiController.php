@@ -63,19 +63,38 @@ class ProfileApiController extends ApiController
         if ($request->hasFile('avatar')) {
             $employee = $user->employee;
 
-            if (!$employee)
-                return $this->error('Employee record not found', 404);
+            if ($employee) {
+                // Delete old avatar if exists
+                if ($employee->avatar) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($employee->avatar);
+                }
 
-            // Delete old avatar if exists
-            if ($employee->avatar) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($employee->avatar);
+                $path = $request->file('avatar')->store('avatars', 'public');
+                $employee->update(['avatar' => $path]);
             }
-
-            $path = $request->file('avatar')->store('avatars', 'public');
-
-            $employee->update(['avatar' => $path]);
+        } elseif ($request->filled('avatar') && str_starts_with($request->input('avatar'), 'temp/')) {
+            $employee = $user->employee;
+            
+            if ($employee) {
+                $tempPath = $request->input('avatar');
+                
+                if (\Illuminate\Support\Facades\Storage::disk('public')->exists($tempPath)) {
+                    // Delete old avatar if exists
+                    if ($employee->avatar) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($employee->avatar);
+                    }
+                    
+                    $fileName = basename($tempPath);
+                    $newPath = 'avatars/' . $fileName;
+                    
+                    \Illuminate\Support\Facades\Storage::disk('public')->move($tempPath, $newPath);
+                    $employee->update(['avatar' => $newPath]);
+                }
+            }
         }
 
-        return $this->success($user->load('employee'), 'Profile updated successfully.');
+        $user->load('employee');
+
+        return $this->success($user, 'Profile updated successfully.');
     }
 }

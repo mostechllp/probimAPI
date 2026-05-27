@@ -14,9 +14,9 @@ class EmployeeSeeder extends Seeder
         $role = \App\Models\Role::where('name', 'Employee')->first();
 
         $user = User::create([
-            'username' => 'jithin@thesay.ae',
-            'email' => 'jithin@thesay.ae',
-            'password' => Hash::make('jithin@thesay'),
+            'username' => 'anu@gmail.com',
+            'email' => 'anu@gmail.com',
+            'password' => Hash::make('anu@probim'),
             'type' => 'employee',
             'status' => 'active',
             'role_id' => $role?->id,
@@ -24,11 +24,11 @@ class EmployeeSeeder extends Seeder
 
         Employee::create([
             'user_id' => $user->id,
-            'first_name' => 'Jithin',
-            'last_name' => 'J',
-            'employee_id' => '1',
-            'company_email' => 'jithin@thesay.ae',
-            'personal_email' => 'jithin@thesay.ae',
+            'first_name' => 'Anu',
+            'last_name' => 'Mohan',
+            'employee_id' => 'EMP',
+            'company_email' => 'anu@gmail.com',
+            'personal_email' => 'anu@gmail.com',
             'personal_number' => '9876543210',
             'joining_date' => now(),
         ]);

@@ -64,7 +64,7 @@ class LoginController extends ApiController
                 'username' => $user->username,
                 'email' => $user->email,
                 'status' => $user->status,
-                'avatar' => $user->avatar_url,
+                'avatar' => $employee ? $employee->avatar_url : $user->avatar_url,
                 'type' => $user->type,
                 'role' => $role ? [
                     'id' => $role->id,

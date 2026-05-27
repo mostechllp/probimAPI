@@ -144,7 +144,12 @@ class StoreEmployeeRequest extends FormRequest
             'personal_number' => 'nullable|string|max:255',
             'other_number' => 'nullable|string|max:255',
             'home_country_number' => 'nullable|string|max:255',
-            'company_email' => 'nullable|email|max:255',
+            'company_email' => [
+            'nullable',
+            'email',
+                Rule::unique('employees', 'company_email')
+                    ->whereNull('deleted_at')        // ignore current employee on update
+            ],
             'personal_email' => [
             'required',
             'email',
@@ -153,9 +158,14 @@ class StoreEmployeeRequest extends FormRequest
             ],
             'status' => 'nullable|in:active,inactive',
             'username' => 'nullable|string|max:255|unique:users,username',
-            // 'password' => 'nullable|string|max:255',
+            'email' => [
+            'nullable',
+            'email',
+                Rule::unique('users', 'email')
+                    ->whereNull('deleted_at')        // ignore current employee on update
+            ],
             'type' => 'required|in:admin,employee',
-            'role_id' => 'required|string|max:255',
+            'role_id' => 'required',
         ];
     }
 

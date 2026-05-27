@@ -15,11 +15,18 @@ class RoleSeeder extends Seeder
     {
         // Define roles
         $roles = [
+            'Super Admin',
             'Admin',
             'Subadmin',
-            'Manager',
+            'HR Manager',
+            'BIM Manager',
+            'BIM Assistant Manager',
+            'BIM Team Lead',
+            'BIM Coordinator',
+            'BIM Modeler',
+            'BIM Technician',
+            'BIM Engineer',
             'Employee',
-            'Driver',
         ];
 
         foreach ($roles as $role) {
