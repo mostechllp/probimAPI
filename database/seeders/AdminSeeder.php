@@ -13,9 +13,9 @@ class AdminSeeder extends Seeder
         $role = \App\Models\Role::where('name', 'Admin')->first();
 
         $user = User::create([
-            'username' => 'hr@thesay.ae',
-            'email' => 'hr@thesay.ae',
-            'password' => Hash::make('HR@th3$4y2026'),
+            'username' => 'hr@probim.ae',
+            'email' => 'hr@probim.ae',
+            'password' => Hash::make('HR@probim2026'),
             'type' => 'admin',
             'status' => 'active', 
             'role_id' => $role?->id,
@@ -26,8 +26,8 @@ class AdminSeeder extends Seeder
             'last_name' => 'Admin',
             'user_id' => $user->id,
             'employee_id' => '1000',
-            'company_email' => 'hr@thesay.ae',
-            'personal_email' => 'hr@thesay.ae',
+            'company_email' => 'hr@probim.ae',
+            'personal_email' => 'ajmal@gmail.com',
         ]);
 
     }

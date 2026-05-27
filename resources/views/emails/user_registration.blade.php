@@ -78,11 +78,11 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Welcome to Mostech HRMS</h1>
+            <h1>Welcome to Probim HRMS</h1>
         </div>
         <div class="content">
             <p>Hello {{ $employee->first_name }},</p>
-            <p>Your account has been successfully created in the Mostech HRMS system. You can now log in using the credentials below:</p>
+            <p>Your account has been successfully created in the Probim HRMS system. You can now log in using the credentials below:</p>
             
             <div class="user-info">
                 <p><span class="label">Username:</span> <span class="value">{{ $user->username }}</span></p>
@@ -91,7 +91,7 @@
             
             <p>For security reasons, we recommend that you change your password after your first login.</p>
             
-            <a href="{{ config('app.url') }}" class="button">Go to Dashboard</a>
+            <a href="https://probim.vercel.app" class="button">Go to Dashboard</a>
             
             <p>If you have any questions, please contact our HR department.</p>
         </div>

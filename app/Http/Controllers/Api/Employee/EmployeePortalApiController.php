@@ -34,7 +34,7 @@ class EmployeePortalApiController extends ApiController
         // Attendance stats for today
         $attendance = AttendanceLog::where('userid', $employee->employee_id)
             ->whereDate('log_date', $today)
-            ->select('punch_in', 'punch_out')
+            ->select('punch_in', 'punch_out', 'punch_in_latitude', 'punch_in_longitude', 'punch_in_address', 'punch_out_latitude', 'punch_out_longitude', 'punch_out_address')
             ->first();
 
         // 30-day attendance history
@@ -42,7 +42,7 @@ class EmployeePortalApiController extends ApiController
         $to = Carbon::now()->endOfDay();
         $attendanceHistory = AttendanceLog::where('userid', $employee->employee_id)
             ->whereBetween('log_date', [$from, $to])
-            ->select('log_date', 'punch_in', 'punch_out')
+            ->select('log_date', 'punch_in', 'punch_out', 'punch_in_latitude', 'punch_in_longitude', 'punch_in_address', 'punch_out_latitude', 'punch_out_longitude', 'punch_out_address')
             ->orderByDesc('log_date')
             ->get();
 
@@ -81,6 +81,16 @@ class EmployeePortalApiController extends ApiController
                 'punched_out' => $attendance && $attendance->punch_out,
                 'punch_in_time' => $attendance ? $attendance->punch_in : null,
                 'punch_out_time' => $attendance ? $attendance->punch_out : null,
+                'punch_in_location' => [          // ← ADD THIS
+                    'latitude' => $attendance ? $attendance->punch_in_latitude : null,
+                    'longitude' => $attendance ? $attendance->punch_in_longitude : null,
+                    'address' => $attendance ? $attendance->punch_in_address : null
+                 ],
+                'punch_out_location' => [          // ← ADD THIS
+                    'latitude' => $attendance ? $attendance->punch_out_latitude : null,
+                    'longitude' => $attendance ? $attendance->punch_out_longitude : null,
+                    'address' => $attendance ? $attendance->punch_out_address : null
+                ]
             ],
             'leave_stats' => [
                 'total_taken' => (float) $totalLeavesTaken,
@@ -97,8 +107,13 @@ class EmployeePortalApiController extends ApiController
     /**
      * Punch In
      */
-    public function punchIn(): JsonResponse
+    public function punchIn(Request $request): JsonResponse
     {
+        $request->validate([
+            'location.latitude' => 'nullable|numeric',
+            'location.longitude' => 'nullable|numeric',
+            'location.address' => 'nullable|string'
+        ]);
         $user = auth('api')->user();
         $employee = $user ? $user->employee : null;
         if (!$employee)
@@ -120,7 +135,10 @@ class EmployeePortalApiController extends ApiController
             'log_date' => $today,
             'punch_in' => Carbon::now(),
             'status' => 1,
-            'log_status' => 'IN'
+            'log_status' => 'IN',
+            'punch_in_latitude' => $request->input('location.latitude'),
+            'punch_in_longitude' => $request->input('location.longitude'),
+            'punch_in_address' => $request->input('location.address')
         ]);
 
         return $this->success($log, 'Punched in successfully.', 201);
@@ -134,7 +152,10 @@ class EmployeePortalApiController extends ApiController
         $request->validate([
             'tasks_completed' => 'required|string',
             'plan_tomorrow' => 'required|string',
-            'remarks' => 'nullable|string'
+            'remarks' => 'nullable|string',
+            'location.latitude' => 'nullable|numeric',
+            'location.longitude' => 'nullable|numeric',
+            'location.address' => 'nullable|string'
         ]);
 
         $user = auth('api')->user();
@@ -164,7 +185,10 @@ class EmployeePortalApiController extends ApiController
 
         $log->update([
             'punch_out' => Carbon::now(),
-            'log_status' => 'OUT'
+            'log_status' => 'OUT',
+            'punch_out_latitude' => $request->input('location.latitude'),
+            'punch_out_longitude' => $request->input('location.longitude'),
+            'punch_out_address' => $request->input('location.address')
         ]);
 
         return $this->success($log, 'Punched out successfully and tasks submitted.');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Api\ApiController;
 use App\Models\Employee;
 use App\Models\User;
+use App\Models\Role;
 use App\Http\Requests\StoreEmployeeRequest;
 use App\Http\Requests\UpdateEmployeeRequest;
 use Illuminate\Http\Request;
@@ -60,7 +61,7 @@ class EmployeeApiController extends ApiController
 
         // Assign Role
         $roleName = $data['role'] ?? 'Employee';
-        $role = \App\Models\Role::where('name', $roleName)->first();
+        $role = Role::where('name', $roleName)->first();
         if ($role) {
             $user->update(['role_id' => $role->id]);
         }
@@ -180,7 +181,6 @@ class EmployeeApiController extends ApiController
         try {
             $file = $request->file('file');
 
-            // ✅ Check file is valid
             if (!$file->isValid()) {
                 return response()->json([
                     'status' => false,
@@ -190,12 +190,10 @@ class EmployeeApiController extends ApiController
 
             $fileName = Str::uuid() . '.' . $file->getClientOriginalExtension();
 
-            // ✅ Make sure temp directory exists
             if (!Storage::disk('public')->exists('temp')) {
                 Storage::disk('public')->makeDirectory('temp');
             }
 
-            // ✅ Store file explicitly
             $path = Storage::disk('public')->putFileAs(
                 'temp',       // folder
                 $file,        // file
@@ -244,7 +242,9 @@ class EmployeeApiController extends ApiController
             if (!empty($data[$field]) && strpos($data[$field], 'temp/') === 0) {
                 $tempPath = $data[$field];
                 $fileName = basename($tempPath);
-                $newPath = 'documents/' . $fileName;
+                
+                $dir = ($field === 'avatar') ? 'avatars' : 'documents';
+                $newPath = $dir . '/' . $fileName;
 
                 if (Storage::disk('public')->exists($tempPath)) {
                     Storage::disk('public')->move($tempPath, $newPath);

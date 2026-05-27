@@ -25,10 +25,10 @@ class DatabaseSeeder extends Seeder
             RBACSeeder::class,
             LeaveTypeSeeder::class,
             OrganizationSeeder::class,
-            CompanySeeder::class,
+            // CompanySeeder::class,
             AdminSeeder::class,
             EmployeeSeeder::class,
-            UserSeeder::class,
+            // UserSeeder::class,
         ]);
     }
 }

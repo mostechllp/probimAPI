@@ -15,11 +15,11 @@ class OrganizationSeeder extends Seeder
     {
         DB::table('organizations')->insert([
             [
-                'name' => 'Thesay',
-                'phone' => '971343343',
-                'email' => 'info@thesay.ae',
+                'name' => 'Probim',
+                'phone' => '97189009889',
+                'email' => 'info@probim.ae',
                 'logo' => null,
-                'has_multiple_companies' => true,
+                'has_multiple_companies' => false,
                 'address' => 'Dubai, UAE',
                 'created_by' => 1,
                 'deleted_by' => null,

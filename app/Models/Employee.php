@@ -103,10 +103,10 @@ class Employee extends Model
 
     public function getAvatarUrlAttribute()
     {
-        if ($this->avatar && file_exists(storage_path('app/public/' . $this->avatar))) {
+        if ($this->avatar) {
             return asset('storage/' . $this->avatar);
         }
-        return $this->user ? $this->user->avatar_url : 'https://ui-avatars.com/api/?name=' . urlencode($this->first_name) . '&color=fff&background=2ecc71';
+        return $this->user ? $this->avatar_url : 'https://ui-avatars.com/api/?name=' . urlencode($this->first_name) . '&color=fff&background=2ecc71';
     }
 
     public function attendanceLogs()
@@ -122,5 +122,13 @@ class Employee extends Model
     public function leaveAllocations()
     {
         return $this->hasMany(LeaveAllocation::class);
+    }
+
+    public function projects()
+    {
+        return $this->belongsToMany(Project::class, 'employee_project')
+            ->using(ProjectAssignment::class)
+            ->withPivot('assigned_by', 'deleted_by', 'deleted_at')
+            ->wherePivot('deleted_at', null);
     }
 }
