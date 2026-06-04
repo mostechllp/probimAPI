@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: attendanceapp_app
+    container_name: hrms_app
     restart: unless-stopped
     volumes:
       - .:/var/www/html
@@ -16,33 +16,33 @@ services:
       DB_CONNECTION: mysql
       DB_HOST: db
       DB_PORT: 3306
-      DB_DATABASE: attendanceapp
-      DB_USERNAME: attendanceuser
+      DB_DATABASE: hrms
+      DB_USERNAME: hrmsuser
       DB_PASSWORD: password
     depends_on:
       - db
     networks:
-      - attendanceapp_network
+      - hrms_network
 
   db:
     image: mysql:8.0
-    container_name: attendanceapp_db
+    container_name: hrms_db
     restart: unless-stopped
     ports:
       - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: attendanceapp
-      MYSQL_USER: attendanceuser
+      MYSQL_DATABASE: hrms
+      MYSQL_USER: hrmsuser
       MYSQL_PASSWORD: password
     volumes:
-      - attendanceapp_dbdata:/var/lib/mysql
+      - hrms_dbdata:/var/lib/mysql
     networks:
-      - attendanceapp_network
+      - hrms_network
 
   web:
     image: nginx:alpine
-    container_name: attendanceapp_nginx
+    container_name: hrms_nginx
     restart: unless-stopped
     ports:
       - "8080:80"
@@ -52,11 +52,11 @@ services:
     depends_on:
       - app
     networks:
-      - attendanceapp_network
+      - hrms_network
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
-    container_name: attendanceapp_phpmyadmin
+    container_name: hrms_phpmyadmin
     restart: unless-stopped
     ports:
       - "8081:80"
@@ -67,11 +67,11 @@ services:
     depends_on:
       - db
     networks:
-      - attendanceapp_network
+      - hrms_network
 
 volumes:
-  attendanceapp_dbdata:
+  hrms_dbdata:
 
 networks:
-  attendanceapp_network:
+  hrms_network:
     driver: bridge

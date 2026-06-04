@@ -87,7 +87,14 @@ class Employee extends Model
         'nationality',
         'visa_type',
         'is_skilled',
-        'additional_documents'
+        'additional_documents',
+        'experience_level',
+        'key_skills',
+        'highest_education',
+        'currency',
+        'payment_cycle',
+        'moh_license_number',
+        'reporting_manager_id'
     ];
 
     protected $casts = [
@@ -106,7 +113,7 @@ class Employee extends Model
         if ($this->avatar) {
             return asset('storage/' . $this->avatar);
         }
-        return $this->user ? $this->avatar_url : 'https://ui-avatars.com/api/?name=' . urlencode($this->first_name) . '&color=fff&background=2ecc71';
+        return $this->user ? $this->avatar : 'https://ui-avatars.com/api/?name=' . urlencode($this->first_name) . '&color=fff&background=2ecc71';
     }
 
     public function attendanceLogs()
@@ -127,8 +134,28 @@ class Employee extends Model
     public function projects()
     {
         return $this->belongsToMany(Project::class, 'employee_project')
-            ->using(ProjectAssignment::class)
             ->withPivot('assigned_by', 'deleted_by', 'deleted_at')
+            ->withTimestamps()
             ->wherePivot('deleted_at', null);
+    }
+
+    public function salaryComponents()
+    {
+        return $this->hasMany(EmployeeSalaryComponent::class);
+    }
+
+    public function bankDetails()
+    {
+        return $this->hasMany(EmployeeBankDetail::class);
+    }
+
+    public function reportingManager()
+    {
+        return $this->belongsTo(Employee::class, 'reporting_manager_id');
+    }
+
+    public function offboardings()
+    {
+        return $this->hasMany(Offboarding::class);
     }
 }

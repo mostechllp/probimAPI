@@ -1,4 +1,4 @@
-FROM php:8.2-fpm
+FROM php:8.4-fpm
 
 # Install system dependencies
 RUN apt-get update && \
@@ -36,20 +36,9 @@ WORKDIR /var/www/html
 # Copy composer from official image
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Copy application files
-COPY . .
-
-# Remove storage symlink if exists (Fix for Docker build issue)
-RUN rm -rf public/storage
-
-# Install dependencies
-RUN composer install --no-interaction --prefer-dist --optimize-autoloader
-
 # Set correct permissions
-RUN chown -R www-data:www-data storage bootstrap/cache
-
-# Create storage symlink inside container
-RUN php artisan storage:link || true
+RUN mkdir -p storage bootstrap/cache && \
+    chown -R www-data:www-data storage bootstrap/cache
 
 # Expose port
 EXPOSE 9000

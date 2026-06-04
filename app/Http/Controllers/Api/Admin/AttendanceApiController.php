@@ -109,12 +109,11 @@ class AttendanceApiController extends ApiController
                 $upload->update(['status' => 'completed', 'progress' => 100]);
 
                 return $this->success($upload, 'Attendance imported successfully');
-            } else {
-                // Dispatch background job for .dat/.txt
-                ProcessAttendanceJob::dispatch($upload->id);
+            } 
+            // Dispatch background job for .dat/.txt
+            ProcessAttendanceJob::dispatch($upload->id);
 
-                return $this->success($upload, 'Attendance file uploaded and processing started');
-            }
+            return $this->success($upload, 'Attendance file uploaded and processing started');
         } catch (\Exception $e) {
             Log::error('Upload Error: ' . $e->getMessage());
             return $this->error('Upload failed: ' . $e->getMessage(), 500);

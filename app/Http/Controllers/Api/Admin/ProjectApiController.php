@@ -19,6 +19,36 @@ class ProjectApiController extends ApiController
     }
 
     /**
+     * Get eligible project managers and team leads.
+     */
+    public function getEligibleManagers(): JsonResponse
+    {
+        $allowedRoles = [
+            'Super Admin',
+            'Admin',
+            'Subadmin',
+            'HR Manager',
+            'BIM Manager',
+            'BIM Assistant Manager',
+            'BIM Team Lead',
+            'BIM Coordinator'
+        ];
+
+        $employees = \App\Models\Employee::whereHas('user.role', function ($query) use ($allowedRoles) {
+            $query->whereIn('name', $allowedRoles);
+        })->get()->map(function ($employee) {
+            return [
+                'id' => $employee->id,
+                'user_id' => $employee->user_id,
+                'employee_id' => $employee->employee_id,
+                'full_name' => trim($employee->first_name . ' ' . $employee->last_name),
+            ];
+        });
+
+        return $this->success($employees);
+    }
+
+    /**
      * Store a newly created project.
      */
     public function store(Request $request): JsonResponse

@@ -139,7 +139,13 @@ class StoreEmployeeRequest extends FormRequest
             'eid_number' => 'nullable|string|max:255',
             'eid_issued_date' => 'nullable|date',
             'eid_expiry_date' => 'nullable|date',
+            'moh_license_number' => 'nullable|string|max:255',
             'dependents' => 'nullable|string|max:255',
+            'experience_level' => 'nullable|string|max:255',
+            'key_skills' => 'nullable|string',
+            'highest_education' => 'nullable|string|max:255',
+            'currency' => 'nullable|string|max:255',
+            'payment_cycle' => 'nullable|string|max:255',
             'company_mobile_number' => 'nullable|string|max:255',
             'personal_number' => 'nullable|string|max:255',
             'other_number' => 'nullable|string|max:255',
@@ -156,7 +162,7 @@ class StoreEmployeeRequest extends FormRequest
                 Rule::unique('employees', 'personal_email')
                     ->whereNull('deleted_at')        // ignore current employee on update
             ],
-            'status' => 'nullable|in:active,inactive',
+            'status' => 'nullable|in:active,inactive,onboarding',
             'username' => 'nullable|string|max:255|unique:users,username',
             'email' => [
             'nullable',

@@ -107,7 +107,7 @@ class EmployeeController extends Controller
             'email' => $data['company_email'],
             'password' => Hash::make($randomPassword),
             'organization_id' => $data['organization_id'] ?? 1,
-            'company_id' => $data['company_id'],
+            'company_id' => $data['company_id'] ?? null,
             'department_id' => $data['department_id'] ?? null,
             'designation_id' => $data['designation_id'] ?? null,
             'type' => 'employee',

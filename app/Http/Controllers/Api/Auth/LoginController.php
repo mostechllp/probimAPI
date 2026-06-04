@@ -40,7 +40,10 @@ class LoginController extends ApiController
 
         if ($user->status !== 'active') {
             auth('api')->logout();
-            return $this->error('Account is inactive', 403);
+            return $this->error('Account is inactive. Please contact the administrator.', 403);
+        } else if ($user->status == 'onboarding') {
+            auth('api')->logout();
+            return $this->error('Account is under onboarding and is not yet active.', 403);
         }
 
         return $this->respondWithToken($token, $user);

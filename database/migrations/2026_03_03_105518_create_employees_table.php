@@ -58,6 +58,7 @@ return new class extends Migration {
             $table->string('eid_2nd_page')->nullable();
 
             // Other Details
+            $table->string('moh_license_number')->nullable();
             $table->string('dependents')->nullable(); // Yes/No
             $table->string('educational_1st_page')->nullable();
             $table->string('educational_2nd_page')->nullable();

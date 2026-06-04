@@ -23,7 +23,7 @@ class EmployeeApiController extends ApiController
         $status = $request->get('status', 'active');
         $perPage = $request->get('per_page', 15);
 
-        $query = Employee::with(['user.company', 'user.department', 'user.designation'])
+        $query = Employee::with(['user.company', 'user.department', 'user.designation', 'salaryComponents', 'bankDetails'])
             ->whereHas('user', function ($q) {
                 $q->whereNotIn('type', ['admin']);
             });
@@ -52,7 +52,7 @@ class EmployeeApiController extends ApiController
             'email' => $userEmail,
             'password' => Hash::make($randomPassword),
             'organization_id' => $data['organization_id'] ?? 1,
-            'company_id' => $data['company_id'],
+            'company_id' => $data['company_id'] ?? null,
             'department_id' => $data['department_id'] ?? null,
             'designation_id' => $data['designation_id'] ?? null,
             'type' => $data['type'] ?? 'employee',
@@ -60,8 +60,8 @@ class EmployeeApiController extends ApiController
         ]);
 
         // Assign Role
-        $roleName = $data['role'] ?? 'Employee';
-        $role = Role::where('name', $roleName)->first();
+        $roleId = $data['role_id'] ?? null;
+        $role = Role::where('id', $roleId)->first();
         if ($role) {
             $user->update(['role_id' => $role->id]);
         }
@@ -74,11 +74,11 @@ class EmployeeApiController extends ApiController
 
         $employee = Employee::create($data);
 
-        // Send Email to both personal and company emails
-        $recipients = array_filter([$employee->company_email, $employee->personal_email]);
-        if (!empty($recipients)) {
+        // Send Email to company email (priority) or personal email
+        $recipient = $employee->company_email ?: $employee->personal_email;
+        if ($recipient) {
             try {
-                Mail::to($recipients)->send(new UserRegistrationMail($user, $randomPassword, $employee));
+                Mail::to($recipient)->send(new UserRegistrationMail($user, $randomPassword, $employee));
             } catch (\Exception $e) {
                 // Log error or handle it, but don't fail the registration
                 \Log::error('Failed to send registration email: ' . $e->getMessage());
@@ -93,7 +93,7 @@ class EmployeeApiController extends ApiController
 
     public function show(Employee $employee): JsonResponse
     {
-        $employee->load(['user.company', 'user.department', 'user.designation']);
+        $employee->load(['user.company', 'user.department', 'user.designation', 'salaryComponents', 'bankDetails']);
         return $this->success($employee);
     }
 
@@ -113,17 +113,17 @@ class EmployeeApiController extends ApiController
                 $userData['email'] = $userEmail;
             if (!empty($data['password']))
                 $userData['password'] = Hash::make($data['password']);
-            if (isset($data['organization_id']))
+            if (array_key_exists('organization_id', $data))
                 $userData['organization_id'] = $data['organization_id'];
-            if (isset($data['company_id']))
+            if (array_key_exists('company_id', $data))
                 $userData['company_id'] = $data['company_id'];
-            if (isset($data['department_id']))
+            if (array_key_exists('department_id', $data))
                 $userData['department_id'] = $data['department_id'];
-            if (isset($data['designation_id']))
+            if (array_key_exists('designation_id', $data))
                 $userData['designation_id'] = $data['designation_id'];
-            if (isset($data['type']))
+            if (array_key_exists('type', $data))
                 $userData['type'] = $data['type'];
-            if (isset($data['status']))
+            if (array_key_exists('status', $data))
                 $userData['status'] = $data['status'];
 
             if (!empty($userData)) {
@@ -131,8 +131,8 @@ class EmployeeApiController extends ApiController
             }
 
             // Update role if provided
-            if (isset($data['role'])) {
-                $role = \App\Models\Role::where('name', $data['role'])->first();
+            if (isset($data['role_id'])) {
+                $role = \App\Models\Role::where('id', $data['role_id'])->first();
                 if ($role) {
                     $employee->user->update(['role_id' => $role->id]);
                 }

@@ -12,10 +12,53 @@ class ProjectAssignmentApiController extends ApiController
     /**
      * Display a listing of employees and their assigned projects.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $employees = Employee::with('projects')->get();
+        $query = Employee::with(['projects.projectManager', 'projects.teamLead']);
+
+        if ($request->filled('employee_id')) {
+            $query->where('id', $request->employee_id);
+        }
+
+        $employees = $query->get();
         return $this->success($employees);
+    }
+
+    /**
+     * Display projects for a specific employee.
+     */
+    public function show($id): JsonResponse
+    {
+        $employee = Employee::with(['projects.projectManager.user', 'projects.teamLead.user'])->find($id);
+
+        if (!$employee) {
+            return $this->error('Employee not found', 404);
+        }
+
+        $formatEmployee = function ($emp) {
+            if (!$emp) return null;
+            return [
+                'id' => $emp->id,
+                'name' => trim($emp->first_name . ' ' . $emp->last_name),
+                'employee_id' => $emp->employee_id,
+                'avatar' => $emp->avatar,
+                'email' => $emp->company_email ?? ($emp->user->email ?? $emp->personal_email),
+            ];
+        };
+
+        $projects = $employee->projects->map(function ($project) use ($formatEmployee) {
+            return [
+                'id' => $project->id,
+                'name' => $project->name,
+                'description' => $project->description,
+                'project_manager' => $formatEmployee($project->projectManager),
+                'team_lead' => $formatEmployee($project->teamLead),
+                'assigned_by' => $project->pivot->assigned_by,
+                'assigned_at' => $project->pivot->created_at,
+            ];
+        });
+
+        return $this->success(['projects' => $projects]);
     }
 
     /**

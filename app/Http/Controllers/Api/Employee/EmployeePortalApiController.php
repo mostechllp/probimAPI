@@ -7,6 +7,7 @@ use App\Models\AttendanceLog;
 use App\Models\TaskReport;
 use App\Models\WfhRequest;
 use App\Models\LeaveRequest;
+use App\Models\LeaveType;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -32,7 +33,7 @@ class EmployeePortalApiController extends ApiController
         $today = Carbon::today()->toDateString();
 
         // Attendance stats for today
-        $attendance = AttendanceLog::where('userid', $employee->employee_id)
+        $attendance = AttendanceLog::where('userid', $user->id)
             ->whereDate('log_date', $today)
             ->select('punch_in', 'punch_out', 'punch_in_latitude', 'punch_in_longitude', 'punch_in_address', 'punch_out_latitude', 'punch_out_longitude', 'punch_out_address')
             ->first();
@@ -40,7 +41,7 @@ class EmployeePortalApiController extends ApiController
         // 30-day attendance history
         $from = Carbon::now()->subDays(30)->startOfDay();
         $to = Carbon::now()->endOfDay();
-        $attendanceHistory = AttendanceLog::where('userid', $employee->employee_id)
+        $attendanceHistory = AttendanceLog::where('userid', $user->id)
             ->whereBetween('log_date', [$from, $to])
             ->select('log_date', 'punch_in', 'punch_out', 'punch_in_latitude', 'punch_in_longitude', 'punch_in_address', 'punch_out_latitude', 'punch_out_longitude', 'punch_out_address')
             ->orderByDesc('log_date')
@@ -85,7 +86,7 @@ class EmployeePortalApiController extends ApiController
                     'latitude' => $attendance ? $attendance->punch_in_latitude : null,
                     'longitude' => $attendance ? $attendance->punch_in_longitude : null,
                     'address' => $attendance ? $attendance->punch_in_address : null
-                 ],
+                ],
                 'punch_out_location' => [          // ← ADD THIS
                     'latitude' => $attendance ? $attendance->punch_out_latitude : null,
                     'longitude' => $attendance ? $attendance->punch_out_longitude : null,
@@ -119,9 +120,19 @@ class EmployeePortalApiController extends ApiController
         if (!$employee)
             return $this->error('Employee profile not found', 404);
 
+        // Check for missing punch out on previous records
+        $missingPunchOut = AttendanceLog::where('userid', $user->id)
+            ->whereNull('punch_out')
+            ->orderBy('log_date', 'desc')
+            ->first();
+
+        if ($missingPunchOut) {
+            return $this->error("You have a pending punch-out for {$missingPunchOut->log_date}. Please complete your project timings and punch out for that day first.", 403);
+        }
+
         $today = Carbon::today()->toDateString();
 
-        $alreadyPunched = AttendanceLog::where('userid', $employee->employee_id)
+        $alreadyPunched = AttendanceLog::where('userid', $user->id)
             ->whereDate('log_date', $today)
             ->exists();
 
@@ -130,8 +141,8 @@ class EmployeePortalApiController extends ApiController
         }
 
         $log = AttendanceLog::create([
-            'company_id' => $user->company_id ?? 1,
-            'userid' => $employee->employee_id,
+            // 'company_id' => $user->company_id ?? 1,
+            'userid' => $user->id,
             'log_date' => $today,
             'punch_in' => Carbon::now(),
             'status' => 1,
@@ -150,12 +161,12 @@ class EmployeePortalApiController extends ApiController
     public function punchOut(Request $request): JsonResponse
     {
         $request->validate([
-            'tasks_completed' => 'required|string',
-            'plan_tomorrow' => 'required|string',
-            'remarks' => 'nullable|string',
             'location.latitude' => 'nullable|numeric',
             'location.longitude' => 'nullable|numeric',
-            'location.address' => 'nullable|string'
+            'location.address' => 'nullable|string',
+            'project_times' => 'nullable|array',
+            'project_times.*.project_id' => 'required|exists:projects,id',
+            'project_times.*.time_minutes' => 'required|integer|min:1',
         ]);
 
         $user = auth('api')->user();
@@ -163,25 +174,56 @@ class EmployeePortalApiController extends ApiController
         if (!$employee)
             return $this->error('Employee profile not found', 404);
 
-        $today = Carbon::today()->toDateString();
-
-        $log = AttendanceLog::where('userid', $employee->employee_id)
-            ->whereDate('log_date', $today)
+        // Get the active punch in record (could be from today or a previous day they forgot to punch out of)
+        $log = AttendanceLog::where('userid', $user->id)
+            ->whereNull('punch_out')
+            ->orderBy('log_date', 'desc')
             ->first();
 
         if (!$log)
-            return $this->error('You have not punched in yet.', 400);
-        if ($log->punch_out)
-            return $this->error('Already punched out today.', 400);
+            return $this->error('You have no active punch in.', 400);
 
-        TaskReport::updateOrCreate(
-            ['employee_id' => $employee->id, 'date' => $today],
-            [
-                'tasks_completed' => $request->tasks_completed,
-                'plan_tomorrow' => $request->plan_tomorrow,
-                'remarks' => $request->remarks
-            ]
-        );
+        $logDate = $log->log_date;
+        $dayOfWeek = Carbon::parse($logDate)->format('l');
+
+        $assignedProjectIds = $employee->projects()->pluck('projects.id')->toArray();
+
+        if (count($assignedProjectIds) > 0) {
+            $submittedProjectTimes = collect($request->project_times ?? []);
+
+            $submittedProjectIds = $submittedProjectTimes->pluck('project_id')->toArray();
+            $missingProjects = array_diff($assignedProjectIds, $submittedProjectIds);
+
+            if (count($missingProjects) > 0) {
+
+                return response()->json([
+                    'message' => 'Please complete time entry for all assigned projects before punching out.',
+                    'submittedProjectTimes' => $submittedProjectTimes,
+                    'submitted_projects_count' => count($submittedProjectIds),
+                    'missing_projects_count' => count($missingProjects),
+                    'missing_project_ids' => array_values($missingProjects),
+                ], 422);
+            }
+
+            $totalMinutes = $submittedProjectTimes->sum('time_minutes');
+
+            $workingHour = \App\Models\WorkingHour::where('day', $dayOfWeek)->where('is_enabled', true)->first();
+            $requiredMinutes = 0;
+            if ($workingHour && $workingHour->start_time && $workingHour->end_time) {
+                $requiredMinutes = Carbon::parse($workingHour->start_time)->diffInMinutes(Carbon::parse($workingHour->end_time));
+            }
+
+            if ($requiredMinutes > 0 && $totalMinutes < $requiredMinutes) {
+                return $this->error("Total project time logged ($totalMinutes mins) is less than the required working hours ($requiredMinutes mins) for $dayOfWeek.", 422);
+            }
+
+            foreach ($submittedProjectTimes as $pt) {
+                \App\Models\ProjectTimeLog::updateOrCreate(
+                    ['employee_id' => $user->id, 'project_id' => $pt['project_id'], 'date' => $logDate],
+                    ['time_taken_minutes' => $pt['time_minutes']]
+                );
+            }
+        }
 
         $log->update([
             'punch_out' => Carbon::now(),
@@ -191,7 +233,7 @@ class EmployeePortalApiController extends ApiController
             'punch_out_address' => $request->input('location.address')
         ]);
 
-        return $this->success($log, 'Punched out successfully and tasks submitted.');
+        return $this->success($log, 'Punched out successfully.');
     }
 
     /**
@@ -215,19 +257,56 @@ class EmployeePortalApiController extends ApiController
         if (!$employee)
             return $this->error('Employee profile not found', 404);
 
-        $leaveTypes = \App\Models\LeaveType::where('status', true)->get();
+        $leaveTypes = LeaveType::where('status', true)->get();
 
-        $leavesTaken = LeaveRequest::where('employee_id', $employee->id)
+        $currentYear = date('Y');
+        $allocations = \App\Models\LeaveAllocation::where('employee_id', $employee->id)
+            ->where('year', $currentYear)
+            ->get()
+            ->keyBy('leave_type_id');
+
+        // Get all approved/pending leave requests for this employee grouped by type
+        $leaveRequests = LeaveRequest::where('employee_id', $employee->id)
             ->whereIn('status', ['approved', 'pending'])
-            ->sum('duration_days');
+            ->selectRaw('leave_type_id, status, SUM(duration_days) as total_days')
+            ->groupBy('leave_type_id', 'status')
+            ->get()
+            ->groupBy('leave_type_id');
 
-        $remainingBalance = (float) $employee->total_leaves_allocated - (float) $leavesTaken;
+        $totalAllocated = 0;
+        $totalTaken = 0;
+        $totalBalance = 0;
+
+        $leaveTypesData = $leaveTypes->map(function ($leaveType) use ($leaveRequests, $allocations, &$totalAllocated, &$totalTaken, &$totalBalance) {
+            $typeRequests = $leaveRequests->get($leaveType->id, collect());
+            $allocation = $allocations->get($leaveType->id);
+
+            $taken = (float) optional($typeRequests->firstWhere('status', 'approved'))->total_days ?? 0;
+            $pending = (float) optional($typeRequests->firstWhere('status', 'pending'))->total_days ?? 0;
+
+            $allocated = $allocation ? (float) $allocation->allocated_days : 0;
+            $balance = $allocated - $taken;
+
+            $totalAllocated += $allocated;
+            $totalTaken += $taken;
+            $totalBalance += $balance;
+
+            return [
+                'id' => $leaveType->id,
+                'name' => $leaveType->name,
+                'status' => $leaveType->status,
+                'allocated' => $allocated,
+                'taken' => $taken,
+                'pending' => $pending,
+                'balance' => $balance,
+            ];
+        });
 
         return $this->success([
-            'leave_types' => $leaveTypes,
-            'total_allocated' => (float) $employee->total_leaves_allocated,
-            'leaves_taken' => (float) $leavesTaken,
-            'remaining_balance' => (float) $remainingBalance
+            'leave_types' => $leaveTypesData,
+            'total_allocated' => $totalAllocated,
+            'leaves_taken' => $totalTaken,
+            'remaining_balance' => $totalBalance,
         ]);
     }
 
@@ -260,11 +339,20 @@ class EmployeePortalApiController extends ApiController
         $durationDays = $start->diffInDays($end) + 1;
 
         // Balance check
+        $currentYear = date('Y');
+        $allocation = \App\Models\LeaveAllocation::where('employee_id', $employee->id)
+            ->where('leave_type_id', $request->leave_type_id)
+            ->where('year', $currentYear)
+            ->first();
+
+        $allocated = $allocation ? (float) $allocation->allocated_days : 0;
+
         $leavesTaken = LeaveRequest::where('employee_id', $employee->id)
+            ->where('leave_type_id', $request->leave_type_id)
             ->whereIn('status', ['approved', 'pending'])
             ->sum('duration_days');
 
-        $remainingBalance = $employee->total_leaves_allocated - $leavesTaken;
+        $remainingBalance = $allocated - $leavesTaken;
 
         if ($durationDays > $remainingBalance) {
             return $this->error("Insufficient leave balance. You have only $remainingBalance days remaining.", 422);
@@ -323,8 +411,8 @@ class EmployeePortalApiController extends ApiController
     public function storeTaskReport(Request $request): JsonResponse
     {
         $request->validate([
-            'tasks_completed' => 'required|string',
-            'plan_tomorrow' => 'required|string',
+            'tasks_completed' => 'nullable|string',
+            'plan_tomorrow' => 'nullable|string',
             'remarks' => 'nullable|string',
             'date' => 'nullable|date'
         ]);
@@ -352,8 +440,8 @@ class EmployeePortalApiController extends ApiController
     public function updateTaskReport(Request $request, $id): JsonResponse
     {
         $request->validate([
-            'tasks_completed' => 'required|string',
-            'plan_tomorrow' => 'required|string',
+            'tasks_completed' => 'nullable|string',
+            'plan_tomorrow' => 'nullable|string',
             'remarks' => 'nullable|string'
         ]);
 
