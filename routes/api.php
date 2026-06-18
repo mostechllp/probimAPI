@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\Admin\WorkingHourApiController;
 use App\Http\Controllers\Api\Admin\AssetTypeApiController;
 use App\Http\Controllers\Api\Admin\AssetApiController;
 use App\Http\Controllers\Api\Admin\OffboardingChecklistCategoryController;
+use App\Http\Controllers\Api\Admin\PayrollController;
 
 
 /*
@@ -49,7 +50,7 @@ use App\Http\Controllers\Api\Admin\OffboardingChecklistCategoryController;
 Route::group(['prefix' => 'auth'], function () {
     Route::post('login', [LoginController::class, 'login']);
     Route::post('logout', [LoginController::class, 'logout'])->middleware('auth:api');
-    Route::post('refresh', [LoginController::class, 'refresh'])->middleware('auth:api');
+    Route::post('refresh', [LoginController::class, 'refresh']);
     Route::get('me', [LoginController::class, 'me'])->middleware('auth:api');
     Route::get('me/permissions', [LoginController::class, 'getMyPermissions'])->middleware('auth:api');
     Route::get('me/sidebar-modules', [LoginController::class, 'getMySidebarModules'])->middleware('auth:api');
@@ -243,6 +244,14 @@ Route::group(['middleware' => 'auth:api', 'prefix' => 'admin'], function () {
 
         Route::post('/{id}/assign', [AssetApiController::class, 'assign']);
         Route::post('/{id}/revoke', [AssetApiController::class, 'revoke']);
+    });
+
+    // Payroll Management
+    Route::prefix('payroll')->group(function () {
+        Route::get('draft/{user_id}', [PayrollController::class, 'getDraft']);
+        Route::post('save-step', [PayrollController::class, 'saveStep']);
+        Route::post('submit', [PayrollController::class, 'submitPayroll']);
+        Route::get('history', [PayrollController::class, 'history']);
     });
 });
 

@@ -33,7 +33,7 @@ return new class extends Migration
 
         Schema::create('project_time_logs', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('employee_id')->constrained('employees')->cascadeOnDelete();
+            $table->foreignId('employee_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('project_id')->constrained('projects')->cascadeOnDelete();
             $table->date('date');
             $table->integer('time_taken_minutes');

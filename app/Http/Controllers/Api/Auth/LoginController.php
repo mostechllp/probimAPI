@@ -152,12 +152,12 @@ class LoginController extends ApiController
     {
         try {
             $token = auth('api')->refresh();
-            $user = auth('api')->user();
-            
+            $user = auth('api')->setToken($token)->user();
+
             if (!$user) {
                 return $this->error('User not found', 404);
             }
-            
+
             return $this->respondWithToken($token, $user);
         } catch (\Exception $e) {
             return $this->error('Token could not be refreshed. ' . $e->getMessage(), 401);

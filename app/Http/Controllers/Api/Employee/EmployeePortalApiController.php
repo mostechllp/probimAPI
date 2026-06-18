@@ -4,9 +4,10 @@ namespace App\Http\Controllers\Api\Employee;
 
 use App\Http\Controllers\Api\ApiController;
 use App\Models\AttendanceLog;
-use App\Models\AttendanceBreak;
+use App\Models\ProjectTimeLog;
 use App\Models\TaskReport;
 use App\Models\WfhRequest;
+use App\Models\WorkingHour;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\LeaveAllocation;
@@ -73,8 +74,8 @@ class EmployeePortalApiController extends ApiController
 
             // Format working_hours → "8 hrs 30 mins"
             $minutes = $attendance->working_hours ?? 0;
-            $hours   = intdiv($minutes, 60);
-            $mins    = $minutes % 60;
+            $hours = intdiv($minutes, 60);
+            $mins = $minutes % 60;
 
             if ($minutes == 0) {
                 $attendance->working_hours = '--';
@@ -220,7 +221,7 @@ class EmployeePortalApiController extends ApiController
 
         $timezone = $request->input('timezone', config('app.timezone'));
         session(['employee_timezone' => $timezone]);
-        
+
         $today = Carbon::now($timezone)->toDateString();
 
         $alreadyPunched = AttendanceLog::where('userid', $user->id)
@@ -250,6 +251,121 @@ class EmployeePortalApiController extends ApiController
     /**
      * Punch Out
      */
+    // public function punchOut(Request $request): JsonResponse
+    // {
+    //     $request->validate([
+    //         'punch_out_latitude' => 'nullable|numeric',
+    //         'punch_out_longitude' => 'nullable|numeric',
+    //         'punch_out_address' => 'nullable|string',
+    //         'project_times' => 'nullable|array',
+    //         'project_times.*.project_id' => 'nullable|exists:projects,id',
+    //         'project_times.*.time_minutes' => 'nullable|integer|min:1',
+    //         'timezone' => 'nullable|string|timezone',
+    //         'punch_out_time' => 'nullable'
+    //     ]);
+
+    //     $user = auth('api')->user();
+    //     $employee = $user ? $user->employee : null;
+    //     if (!$employee)
+    //         return $this->error('Employee profile not found', 404);
+
+    //     // Get the active punch in record (could be from today or a previous day they forgot to punch out of)
+    //     $log = AttendanceLog::where('userid', $user->id)
+    //         ->whereNull('punch_out')
+    //         ->orderBy('log_date', 'desc')
+    //         ->first();
+
+    //     if (!$log)
+    //         return $this->error('You have no active punch in.', 400);
+
+    //     $logDate = $log->log_date;
+    //     $dayOfWeek = Carbon::parse($logDate)->format('l');
+
+    //     $assignedProjectIds = $employee->projects()->pluck('projects.id')->toArray();
+
+    //     if (count($assignedProjectIds) > 0) {
+    //         $submittedProjectTimes = collect($request->project_times ?? []);
+
+    //         if ($submittedProjectTimes) {
+
+    //             // $submittedProjectIds = $submittedProjectTimes->pluck('project_id')->toArray();
+    //             // $missingProjects = array_diff($assignedProjectIds, $submittedProjectIds);
+
+    //             // if (count($missingProjects) > 0) {
+
+    //             //     return response()->json([
+    //             //         'message' => 'Please complete time entry for all assigned projects before punching out.',
+    //             //         'submittedProjectTimes' => $submittedProjectTimes,
+    //             //         'submitted_projects_count' => count($submittedProjectIds),
+    //             //         'missing_projects_count' => count($missingProjects),
+    //             //         'missing_project_ids' => array_values($missingProjects),
+    //             //     ], 422);
+    //             // }
+
+    //             // $totalMinutes = $submittedProjectTimes->sum('time_minutes');
+
+    //             // $workingHour = WorkingHour::where('day', $dayOfWeek)->where('is_enabled', true)->first();
+    //             // $requiredMinutes = 0;
+    //             // if ($workingHour && $workingHour->start_time && $workingHour->end_time) {
+    //             //     $requiredMinutes = Carbon::parse($workingHour->start_time)->diffInMinutes(Carbon::parse($workingHour->end_time));
+    //             // }
+
+    //             // if ($requiredMinutes > 0 && $totalMinutes < $requiredMinutes) {
+    //             //     return $this->error("Total project time logged ($totalMinutes mins) is less than the required working hours ($requiredMinutes mins) for $dayOfWeek.", 422);
+    //             // }
+
+    //             foreach ($submittedProjectTimes as $pt) {
+    //                 ProjectTimeLog::updateOrCreate(
+    //                     ['employee_id' => $user->id, 'project_id' => $pt['project_id'], 'date' => $logDate],
+    //                     ['time_taken_minutes' => $pt['time_minutes']]
+    //                 );
+    //             }
+    //         }
+    //     }
+
+    //     $timezone = $request->input('timezone', config('app.timezone'));
+
+    //     if ($request->filled('punch_out_time')) {
+    //         $punchOutInput = $request->punch_out_time;
+    //         if (preg_match('/^\d{1,2}:\d{2}(:\d{2})?$/', $punchOutInput)) {
+    //             $now = Carbon::parse($logDate . ' ' . $punchOutInput, $timezone);
+    //             if ($now->lt(Carbon::parse($log->punch_in))) {
+    //                 $now->addDay();
+    //             }
+    //         } else {
+    //             $now = Carbon::parse($punchOutInput, $timezone);
+    //         }
+    //     } else {
+    //         $now = Carbon::now($timezone);
+    //     }
+
+    //     // Auto-end active break if any
+    //     // $activeBreak = $log->breaks()->whereNull('end_time')->first();
+    //     // if ($activeBreak) {
+    //     //     $duration = $activeBreak->start_time->diffInMinutes($now);
+    //     //     $activeBreak->update([
+    //     //         'end_time' => $now,
+    //     //         'duration_minutes' => $duration
+    //     //     ]);
+    //     // }
+
+    //     // Calculate working hours
+    //     $totalMinutes = Carbon::parse($log->punch_in)->diffInMinutes($now);
+    //     // $totalBreakMinutes = $log->breaks()->sum('duration_minutes');
+    //     $workingHours = max(0, $totalMinutes);
+
+    //     $log->update([
+    //         'punch_out' => $now,
+    //         'log_status' => 'OUT',
+    //         'working_hours' => $workingHours,
+    //         'punch_out_latitude' => $request->input('punch_out_latitude'),
+    //         'punch_out_longitude' => $request->input('punch_out_longitude'),
+    //         'punch_out_address' => $request->input('punch_out_address')
+    //     ]);
+
+    //     return $this->success($log, 'Punched out successfully.');
+    // }
+
     public function punchOut(Request $request): JsonResponse
     {
         $request->validate([
@@ -257,9 +373,10 @@ class EmployeePortalApiController extends ApiController
             'punch_out_longitude' => 'nullable|numeric',
             'punch_out_address' => 'nullable|string',
             'project_times' => 'nullable|array',
-            'project_times.*.project_id' => 'required|exists:projects,id',
-            'project_times.*.time_minutes' => 'required|integer|min:1',
-            'timezone' => 'nullable|string|timezone'
+            'project_times.*.project_id' => 'nullable|exists:projects,id',
+            'project_times.*.time_minutes' => 'nullable|integer|min:1',
+            'timezone' => 'nullable|string|timezone',
+            'punch_out_time' => 'nullable|string'
         ]);
 
         $user = auth('api')->user();
@@ -284,57 +401,60 @@ class EmployeePortalApiController extends ApiController
         if (count($assignedProjectIds) > 0) {
             $submittedProjectTimes = collect($request->project_times ?? []);
 
-            $submittedProjectIds = $submittedProjectTimes->pluck('project_id')->toArray();
-            $missingProjects = array_diff($assignedProjectIds, $submittedProjectIds);
-
-            if (count($missingProjects) > 0) {
-
-                return response()->json([
-                    'message' => 'Please complete time entry for all assigned projects before punching out.',
-                    'submittedProjectTimes' => $submittedProjectTimes,
-                    'submitted_projects_count' => count($submittedProjectIds),
-                    'missing_projects_count' => count($missingProjects),
-                    'missing_project_ids' => array_values($missingProjects),
-                ], 422);
-            }
-
-            $totalMinutes = $submittedProjectTimes->sum('time_minutes');
-
-            $workingHour = \App\Models\WorkingHour::where('day', $dayOfWeek)->where('is_enabled', true)->first();
-            $requiredMinutes = 0;
-            if ($workingHour && $workingHour->start_time && $workingHour->end_time) {
-                $requiredMinutes = Carbon::parse($workingHour->start_time)->diffInMinutes(Carbon::parse($workingHour->end_time));
-            }
-
-            if ($requiredMinutes > 0 && $totalMinutes < $requiredMinutes) {
-                return $this->error("Total project time logged ($totalMinutes mins) is less than the required working hours ($requiredMinutes mins) for $dayOfWeek.", 422);
-            }
-
-            foreach ($submittedProjectTimes as $pt) {
-                \App\Models\ProjectTimeLog::updateOrCreate(
-                    ['employee_id' => $user->id, 'project_id' => $pt['project_id'], 'date' => $logDate],
-                    ['time_taken_minutes' => $pt['time_minutes']]
-                );
+            if ($submittedProjectTimes) {
+                foreach ($submittedProjectTimes as $pt) {
+                    ProjectTimeLog::updateOrCreate(
+                        ['employee_id' => $user->id, 'project_id' => $pt['project_id'], 'date' => $logDate],
+                        ['time_taken_minutes' => $pt['time_minutes']]
+                    );
+                }
             }
         }
 
         $timezone = $request->input('timezone', config('app.timezone'));
-        $now = Carbon::now($timezone);
+        $punchIn = Carbon::parse($log->punch_in);
 
-        // Auto-end active break if any
-        $activeBreak = $log->breaks()->whereNull('end_time')->first();
-        if ($activeBreak) {
-            $duration = $activeBreak->start_time->diffInMinutes($now);
-            $activeBreak->update([
-                'end_time' => $now,
-                'duration_minutes' => $duration
-            ]);
+        if ($request->filled('punch_out_time')) {
+            $punchOutInput = $request->punch_out_time;
+            $punchOutDate = $request->punch_out_date;
+
+            // Case 1: time-only input like "18:00" or "18:00:00"
+            if (preg_match('/^\d{1,2}:\d{2}(:\d{2})?$/', $punchOutInput)) {
+                $now = Carbon::parse($punchOutDate . ' ' . $punchOutInput);
+                if ($now->lt($punchIn)) {
+                    $now->addDay();
+                }
+            }
+            // Case 2: full ISO datetime like "2026-06-17T18:00:00+05:30"
+            else {
+                try {
+                    $now = Carbon::parse($punchOutInput);
+                } catch (\Exception $e) {
+                    return $this->error('Invalid punch_out_time format.', 422);
+                }
+            }
+
+            // Validate: punch-out cannot be before punch-in
+            if ($now->lt($punchIn)) {
+                return $this->error('Punch out time cannot be before punch in time.', 422);
+            }
+
+            // Validate: punch-out cannot be in the future
+            if ($now->gt(Carbon::now($timezone)->addMinutes(1))) {
+                return $this->error('Punch out time cannot be in the future.', 422);
+            }
+        } else {
+            $now = Carbon::now($timezone);
         }
 
         // Calculate working hours
-        $totalMinutes = Carbon::parse($log->punch_in)->diffInMinutes($now);
-        $totalBreakMinutes = $log->breaks()->sum('duration_minutes');
-        $workingHours = max(0, $totalMinutes - $totalBreakMinutes);
+        $totalMinutes = $punchIn->diffInMinutes($now);
+        $workingHours = max(0, $totalMinutes);
+
+        // Safety guard against anomalous durations (e.g. stale punch-in from days ago)
+        if ($workingHours > 1440) { // more than 24 hours
+            \Log::warning("Anomalous working hours for user {$user->id}: {$workingHours} minutes (punch_in: {$punchIn}, punch_out: {$now})");
+        }
 
         $log->update([
             'punch_out' => $now,
@@ -373,7 +493,7 @@ class EmployeePortalApiController extends ApiController
         }
 
         $timezone = $request->input('timezone', config('app.timezone'));
-        
+
         $break = $log->breaks()->create([
             'start_time' => Carbon::now($timezone),
         ]);
@@ -567,7 +687,7 @@ class EmployeePortalApiController extends ApiController
         if (!$employee)
             return $this->error('Employee profile not found', 404);
 
-        $reports = TaskReport::where('employee_id', $user->id)->latest()->get();
+        $reports = TaskReport::where('employee_id', $employee->id)->latest()->get();
         return $this->success($reports);
     }
 

@@ -20,7 +20,15 @@ class ProjectAssignmentApiController extends ApiController
             $query->where('id', $request->employee_id);
         }
 
-        $employees = $query->get();
+        $employees = $query->get()->map(function ($employee) {
+            $employee->projects->each(function ($project) use ($employee) {
+                $project->project_time = \App\Models\ProjectTimeLog::where('employee_id', $employee->user_id)
+                    ->where('project_id', $project->id)
+                    ->sum('time_taken_minutes');
+            });
+            return $employee;
+        });
+
         return $this->success($employees);
     }
 
@@ -36,7 +44,8 @@ class ProjectAssignmentApiController extends ApiController
         }
 
         $formatEmployee = function ($emp) {
-            if (!$emp) return null;
+            if (!$emp)
+                return null;
             return [
                 'id' => $emp->id,
                 'name' => trim($emp->first_name . ' ' . $emp->last_name),
@@ -46,7 +55,11 @@ class ProjectAssignmentApiController extends ApiController
             ];
         };
 
-        $projects = $employee->projects->map(function ($project) use ($formatEmployee) {
+        $projects = $employee->projects->map(function ($project) use ($formatEmployee, $employee) {
+            $timeSpent = \App\Models\ProjectTimeLog::where('employee_id', $employee->user_id)
+                ->where('project_id', $project->id)
+                ->sum('time_taken_minutes');
+
             return [
                 'id' => $project->id,
                 'name' => $project->name,
@@ -55,6 +68,7 @@ class ProjectAssignmentApiController extends ApiController
                 'team_lead' => $formatEmployee($project->teamLead),
                 'assigned_by' => $project->pivot->assigned_by,
                 'assigned_at' => $project->pivot->created_at,
+                'project_time' => $timeSpent,
             ];
         });
 
@@ -67,8 +81,8 @@ class ProjectAssignmentApiController extends ApiController
     public function assign(Request $request): JsonResponse
     {
         $request->validate([
-            'employee_id'   => 'required|exists:employees,id',
-            'project_ids'   => 'array',
+            'employee_id' => 'required|exists:employees,id',
+            'project_ids' => 'array',
             'project_ids.*' => 'exists:projects,id',
         ]);
 
@@ -78,7 +92,7 @@ class ProjectAssignmentApiController extends ApiController
         }
 
         $newProjectIds = collect($request->project_ids ?? []);
-        
+
         // Existing active projects
         $existingProjects = $employee->projects()->pluck('projects.id');
 
